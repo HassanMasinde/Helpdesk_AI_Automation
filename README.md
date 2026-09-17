@@ -1,2 +1,2 @@
 # Helpdesk_AI_Automation
-Helpdesk AI AUtomation Agent
+Helpdesk AI Automation Agent
