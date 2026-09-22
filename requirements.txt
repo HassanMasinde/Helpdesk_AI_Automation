@@ -1,4 +1,0 @@
-playwright
-python-dotenv
-openai
-requests
