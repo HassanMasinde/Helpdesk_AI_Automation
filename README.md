@@ -229,9 +229,9 @@ Examples include:
 
 The project was divided into separate responsibilities so that each part could be developed independently and then integrated later. Each role was owned by a specific team member.
 
-### Browser Automation Role - Nicanel
+### Browser Automation Role - Nicanel Obita
 
-**Owner: Nicanel**
+**Owner: Nicanel Obita**
 
 This role focuses on the browser and helpdesk portal interaction.
 
