@@ -1,6 +1,6 @@
-# Hanmak Support AI Agent
+# Helpdesk Automation Project
 
-The Hanmak Support AI Agent is an automation project built to support MedicentreV3, a hospital management system used by healthcare staff for daily clinical and administrative operations.
+The Hanmak Support AI Agent we created is an automation project built to support MedicentreV3, a hospital management system used by healthcare staff for daily clinical and administrative operations.
 
 The project provides an AI-assisted Tier-1 helpdesk solution that helps Hanmak Technologies respond to MedicentreV3 support tickets faster, more consistently, and with less manual effort.
 
