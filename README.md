@@ -1,223 +1,85 @@
 # Hanmak Support AI Agent
 
-Autonomous Tier-1 helpdesk agent for the MedicentreV3 hospital system at Hanmak Technologies.
+An autonomous AI responder for the MedicentreV3 Tier-1 helpdesk at Hanmak Technologies.
 
-The project is being built in Python with `asyncio`. The current focus is the AI resolver module, which drafts professional support replies from ticket descriptions and knowledge base articles.
+## The Problem
 
-## Team Roles
+MedicentreV3 is a hospital system used daily by clinical and administrative staff. When something goes wrong, staff raise support tickets and wait for a human agent to reply.
 
-- Browser Lead: owns Playwright navigation, ticket extraction, and reply submission through the MedicentreV3 support portal.
-- Knowledge Lead: owns Google Docs scraping and extraction of troubleshooting articles.
-- AI & Logic Lead: owns Gemini API integration, prompt design, ticket-to-knowledge reasoning, and response drafting.
+That process had real costs:
 
-## Directory Structure
+- **Slow responses** — staff waited on a human to read and answer each ticket.
+- **Repetitive work** — many tickets were recurring issues (login problems, printer routing, and similar) that followed the same resolution steps.
+- **Inconsistent replies** — quality and tone varied from one agent to another.
 
-```text
-browser/      Playwright browser automation and ticket scraping
-knowledge/    Google Docs knowledge extraction
-ai/           AI analysis, knowledge matching, and Gemini response drafting
-config.py     Central configuration and environment loading
-.env          Local secrets and credentials, ignored by git
-logs/         Runtime logs, ignored by git
-```
+Tier-1 support was spending its time on routine tickets instead of the complex cases that actually need a human.
 
-## Current AI Resolver Status
+## The Solution
 
-The initial AI resolver has been implemented in `ai/resolver.py`.
+The Support AI Agent automates the routine part of Tier-1 support. When a ticket arrives, the AI:
 
-It currently supports:
+1. **Analyzes** the ticket to determine its category and priority.
+2. **Matches** it to the most relevant knowledge article.
+3. **Drafts** a professional, accurate support reply using Google Gemini.
 
-- Fully asynchronous Gemini API calls using the official `google-genai` SDK.
-- Secure API key loading from `.env` through `config.py`.
-- A strict system prompt for professional MedicentreV3 Tier-1 helpdesk replies.
-- Mock ticket and knowledge article test cases while Browser and Knowledge modules are still in development.
-- Exponential backoff retry handling for temporary Gemini API failures.
-- Prompt stress tests to confirm the model does not invent troubleshooting steps when the knowledge base is insufficient.
+The result is a polished, ready-to-send reply — produced in seconds, every time.
 
-## Environment Variables
+## Value Automation Brings to Hanmak
 
-Create a local `.env` file in the project root. This file is ignored by git.
+- **Faster responses** — tickets are answered in seconds instead of hours.
+- **24/7 availability** — the agent never sleeps, so staff get replies at any hour.
+- **Consistent quality** — every reply follows the same professional standard.
+- **Freed-up staff** — Tier-1 agents focus on complex cases, not routine tickets.
+- **Scalable support** — higher ticket volume no longer requires hiring more agents.
 
-Required for the AI resolver:
+## How It Works
 
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+The AI component is built with Python's `asyncio` and Google Gemini:
 
-Existing browser/helpdesk settings are also loaded from `.env`:
+- **`ai/analyzer.py`** — classifies each ticket into a category and assigns a priority.
+- **`ai/knowledge.py`** — matches the ticket to the most relevant knowledge article.
+- **`ai/resolver.py`** — drafts the professional reply through the Gemini API.
 
-```env
-HELPDESK_URL=your_helpdesk_url_here
-HELPDESK_USERNAME=your_username_here
-HELPDESK_PASSWORD=your_password_here
-```
+Development followed a mock-first approach: the AI was tested against realistic sample tickets before any live integration.
 
-`config.py` loads these values with `python-dotenv` and exposes:
+### Guardrails
 
-- `HELPDESK_URL`
-- `HELPDESK_USERNAME`
-- `HELPDESK_PASSWORD`
-- `GEMINI_API_KEY`
+The reply generator is constrained by a strict system prompt so it:
 
-## Dependencies
+- Uses only the ticket and knowledge article provided.
+- Never invents product features, URLs, credentials, or troubleshooting steps.
+- Recommends escalation when the knowledge article does not address the ticket.
+- Never claims an issue is fixed unless the provided information confirms it.
+- Keeps replies professional, concise, and free of any mention of AI or internal reasoning.
 
-The project dependencies are listed in `requirements.txt`.
+The Gemini call also includes retry handling with exponential backoff for transient API errors, so temporary server pressure does not crash the agent.
 
-Current dependencies:
-
-```txt
-playwright
-python-dotenv
-openai
-requests
-google-genai
-```
-
-Install them with:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-## Gemini Resolver
-
-The main async function is:
-
-```python
-async def generate_support_response(
-    ticket_description: str,
-    knowledge_article: str,
-) -> str:
-```
-
-It accepts:
-
-- `ticket_description`: the user's helpdesk ticket text.
-- `knowledge_article`: the relevant troubleshooting article or knowledge base content.
-
-It returns:
-
-- A concise, professional support reply suitable for a Tier-1 MedicentreV3 helpdesk response.
-
-The resolver currently uses:
-
-```python
-model="gemini-3.6-flash"
-```
-
-This model was selected because the Gemini API reported that `gemini-2.5-flash` is no longer available to new users.
-
-## System Prompt Rules
-
-The resolver's system prompt instructs Gemini to act as a professional MedicentreV3 Tier-1 support agent.
-
-Important guardrails:
-
-- Use only the ticket description and knowledge article provided.
-- Do not invent product features, URLs, credentials, policies, or troubleshooting steps.
-- If the knowledge article does not directly address the ticket, say the issue needs further review and recommend escalation.
-- Do not provide generic troubleshooting steps unless they are explicitly included in the knowledge article.
-- Do not say the issue has been fixed unless the provided information confirms that.
-- Keep the reply professional, concise, and suitable for sending directly to hospital staff.
-- Do not mention AI, Gemini, prompts, or internal reasoning.
-- Do not include private internal notes.
-
-## Retry Handling
-
-The Gemini call includes an async exponential backoff retry loop so temporary server spikes do not immediately crash the background agent.
-
-Retry settings:
-
-```python
-MAX_RETRIES = 5
-INITIAL_RETRY_DELAY_SECONDS = 1
-RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
-```
-
-Backoff schedule:
+## Project Structure
 
 ```text
-1 second
-2 seconds
-4 seconds
-8 seconds
-16 seconds
+ai/
+  analyzer.py    ticket classification
+  knowledge.py   knowledge article matching
+  resolver.py    Gemini response drafting
+config.py        configuration and environment loading
 ```
 
-The resolver retries transient API pressure/server errors such as `503 UNAVAILABLE` and `429 TOO MANY REQUESTS`.
+## Getting Started
 
-It does not retry non-transient failures such as missing API keys, invalid credentials, invalid model names, or other configuration errors.
+1. Install dependencies:
 
-## Mock Stress Tests
+   ```powershell
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
 
-Because the Browser and Knowledge modules are still in development, `ai/resolver.py` currently includes mock cases.
+2. Create a `.env` file in the project root with your Gemini API key:
 
-Current mock cases:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
 
-- Login invalid credentials with a matching login KB article.
-- Unsupported outpatient billing receipt cancellation crash with no matching KB steps.
-- Printer mapping issue with a constrained printer-routing KB article.
+3. Run the AI resolver:
 
-The unsupported billing crash case is intentionally designed to test hallucination resistance:
-
-```text
-The outpatient billing module is crashing when I try to cancel a receipt.
-```
-
-The expected behavior is that Gemini should not invent fake troubleshooting steps such as clearing cache, checking database tables, restarting services, changing permissions, or using unsupported receipt-reversal workflows.
-
-Instead, it should acknowledge the issue and recommend escalation because the provided knowledge article says no matching article is available.
-
-## Running The AI Resolver
-
-Run the resolver directly with:
-
-```powershell
-.\.venv\Scripts\python.exe -m ai.resolver
-```
-
-Expected behavior:
-
-- Loads `GEMINI_API_KEY` from `.env`.
-- Runs each mock case through Gemini asynchronously.
-- Prints each drafted response to the terminal.
-- Retries transient Gemini API failures with exponential backoff.
-- Raises a clear error if `GEMINI_API_KEY` is missing.
-
-## Validation Commands Used
-
-Dependency installation:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-Syntax validation:
-
-```powershell
-.\.venv\Scripts\python.exe -m py_compile config.py ai\resolver.py
-```
-
-Resolver runtime validation:
-
-```powershell
-.\.venv\Scripts\python.exe -m ai.resolver
-```
-
-## Known SDK Warning
-
-The Gemini SDK may print this warning:
-
-```text
-Direct use of automatic function calling (AFC) in AsyncModels.generate_content is not recommended...
-```
-
-The current resolver does not use tools or automatic function calling, and the async generation call works successfully. If needed later, the resolver can be migrated to the newer async chat or Interactions API style recommended by the SDK.
-
-## Next Integration Step
-
-Once Browser and Knowledge modules are ready, replace the mock cases in `ai/resolver.py` with live inputs:
-
-- Ticket descriptions from `browser/`.
-- Matched knowledge articles from `knowledge/` or `ai/knowledge.py`.
-- Drafted responses returned by `generate_support_response()` for browser submission.
+   ```powershell
+   .\.venv\Scripts\python.exe -m ai.resolver
+   ```
