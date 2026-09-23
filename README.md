@@ -1,58 +1,134 @@
-# Hanmak Support AI Agent
+# Hanmak Support AI Agent — AI Component
 
-An autonomous AI responder for the MedicentreV3 Tier-1 helpdesk at Hanmak Technologies.
+The AI brain that turns a helpdesk ticket into a ready-to-save resolution.
+
+Given a ticket's problem description, the AI:
+
+1. **Analyzes** it to work out its category and priority.
+2. **Matches** it to the most relevant knowledge article.
+3. **Drafts** a clean, professional resolution using Google Gemini.
+
+It is written in Python with `asyncio` and Google's `google-genai` SDK, using the model **`gemini-3.6-flash`** at temperature `0.2`.
 
 ## The Problem
 
-MedicentreV3 is a hospital system used daily by clinical and administrative staff. When something goes wrong, staff raise support tickets and wait for a human agent to reply.
-
-That process had real costs:
-
-- **Slow responses** — staff waited on a human to read and answer each ticket.
-- **Repetitive work** — many tickets were recurring issues (login problems, printer routing, and similar) that followed the same resolution steps.
-- **Inconsistent replies** — quality and tone varied from one agent to another.
-
-Tier-1 support was spending its time on routine tickets instead of the complex cases that actually need a human.
+When staff raise support tickets, a human agent has to read each one, recall the right fix, and write a reply. That is slow, repetitive, and inconsistent.
 
 ## The Solution
 
-The Support AI Agent automates the routine part of Tier-1 support. When a ticket arrives, the AI:
-
-1. **Analyzes** the ticket to determine its category and priority.
-2. **Matches** it to the most relevant knowledge article.
-3. **Drafts** a professional, accurate support reply using Google Gemini.
-
-The result is a polished, ready-to-send reply — produced in seconds, every time.
-
-## Value Automation Brings to Hanmak
-
-- **Faster responses** — tickets are answered in seconds instead of hours.
-- **24/7 availability** — the agent never sleeps, so staff get replies at any hour.
-- **Consistent quality** — every reply follows the same professional standard.
-- **Freed-up staff** — Tier-1 agents focus on complex cases, not routine tickets.
-- **Scalable support** — higher ticket volume no longer requires hiring more agents.
+The AI automates the routine part of support. For every ticket it produces a complete, polite, ready-to-save answer in seconds.
 
 ## How It Works
 
-The AI component is built with Python's `asyncio` and Google Gemini:
+The pipeline is three steps, each in its own module:
 
-- **`ai/analyzer.py`** — classifies each ticket into a category and assigns a priority.
-- **`ai/knowledge.py`** — matches the ticket to the most relevant knowledge article.
-- **`ai/resolver.py`** — drafts the professional reply through the Gemini API.
+1. `ai/analyzer.py` — reads the ticket and classifies it.
+2. `ai/knowledge.py` — selects the matching support instructions.
+3. `ai/resolver.py` — asks Gemini to write the final resolution.
 
-Development followed a mock-first approach: the AI was tested against realistic sample tickets before any live integration.
+```python
+analysis = await analyze_ticket(ticket)        # step 1
+kb_docs   = await find_relevant_kb(analysis)   # step 2
+resolution = await resolve_ticket(ticket, analysis, kb_docs)  # step 3
+```
+
+There is also a one-call helper that runs the whole pipeline:
+
+```python
+resolution = await solve_ticket(ticket)
+```
+
+## Functions
+
+### `ai/analyzer.py`
+
+- `analyze_ticket(ticket)` — async. Accepts a ticket as a `dict` (or object) with `subject` and `description`, and returns a classification:
+
+```python
+{
+    "ticket_id": "...",
+    "category": "account_access",   # or "general_support"
+    "priority": "medium",           # or "normal"
+    "summary": "...",
+}
+```
+
+It currently recognizes login/password issues as `account_access`; everything else falls back to `general_support`.
+
+### `ai/knowledge.py`
+
+- `find_article(category)` — looks up a support article for a category.
+- `find_relevant_kb(analysis)` — async. Takes the analyzer output and returns a list of knowledge articles for the category.
+
+It also keeps a small set of local fallback articles (account access, network, printer, billing).
+
+### `ai/resolver.py`
+
+- `generate_support_response(ticket_description, knowledge_article)` — async. Calls Gemini and returns the drafted response.
+- `resolve_ticket(ticket, analysis, kb_docs)` — async. Combines the ticket description and knowledge, then delegates to `generate_support_response`.
+
+### `ai/__init__.py`
+
+- `solve_ticket(ticket)` — async. Runs the full pipeline in one call and returns the resolution string.
+
+## The Rules It Follows
+
+The Gemini call is constrained by a strict system prompt. The AI must:
+
+- Use **simple English** and short sentences — no jargon.
+- Write **one final response** — it must **never ask the client questions** (the client cannot reply to the ticket).
+- Give a **numbered step-by-step** resolution guide.
+- Use **only** the ticket description and the knowledge article provided — never invent steps, links, phone numbers, emails, or product features.
+- Write `Processing` when the issue needs waiting or review time.
+- If it is unsure, the problem is unclear, or the knowledge does not cover it, **escalate to a human agent** and include Hanmak contact details.
+- Never claim an issue is fixed unless the provided information confirms it.
+- Never mention AI, Gemini, prompts, or internal reasoning.
 
 ### Guardrails
 
-The reply generator is constrained by a strict system prompt so it:
-
 - Uses only the ticket and knowledge article provided.
 - Never invents product features, URLs, credentials, or troubleshooting steps.
-- Recommends escalation when the knowledge article does not address the ticket.
-- Never claims an issue is fixed unless the provided information confirms it.
-- Keeps replies professional, concise, and free of any mention of AI or internal reasoning.
+- Recommends escalation when the knowledge does not address the ticket.
 
-The Gemini call also includes retry handling with exponential backoff for transient API errors, so temporary server pressure does not crash the agent.
+### Fault Tolerance
+
+The Gemini call retries on transient errors with exponential backoff:
+
+- `MAX_RETRIES = 5`
+- Retries on status codes `429, 500, 502, 503, 504`
+- Starts at `1` second and doubles each attempt.
+
+## Model & Configuration
+
+- Model: `gemini-3.6-flash`
+- Temperature: `0.2`
+- API key is read from the `GEMINI_API_KEY` environment variable (`.env`).
+
+## Knowledge Source
+
+Live knowledge comes from the shared Hanmak support knowledge base (a public Google Sheet) through the knowledge module. `ai/knowledge.py` also carries local fallback articles used for quick testing.
+
+## How It Runs
+
+Mock test (runs built-in sample cases through Gemini):
+
+```powershell
+.\.venv\Scripts\python.exe -m ai.resolver
+```
+
+Integration contract — the browser automation hands the AI a ticket and receives the resolution back:
+
+```python
+resolution = await solve_ticket(ticket)
+```
+
+## How It Plugs Into The Full Flow
+
+```text
+login -> fetch ticket -> AI drafts resolution -> save
+```
+
+The browser automation logs in and pulls a ticket, passes the problem to the AI, and writes the AI's resolution back into the ticket.
 
 ## Project Structure
 
@@ -61,7 +137,6 @@ ai/
   analyzer.py    ticket classification
   knowledge.py   knowledge article matching
   resolver.py    Gemini response drafting
-config.py        configuration and environment loading
 ```
 
 ## Getting Started

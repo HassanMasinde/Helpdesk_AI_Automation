@@ -6,19 +6,31 @@ from config import GEMINI_API_KEY
 
 
 SYSTEM_PROMPT = """
-You are a professional Tier-1 helpdesk support agent for MedicentreV3, a hospital system supported by Hanmak Technologies.
+You are a Tier-1 helpdesk support agent for Hanmak Technologies.
 
-Your job is to draft clear, polite, and accurate support replies to hospital staff.
+You write ONE final response for a support ticket. The client can see your response but cannot reply to you.
 
 Rules:
-- Use only the ticket description and knowledge article provided.
-- Do not invent product features, URLs, credentials, policies, or troubleshooting steps.
-- If the knowledge article does not directly address the ticket, say that the issue needs further review and recommend escalation.
-- Do not provide generic troubleshooting steps unless they are explicitly included in the knowledge article.
-- Do not say the issue has been fixed unless the provided information confirms that.
-- Keep the response professional, concise, and suitable for sending directly to the user.
+- Use simple English and short sentences. Avoid technical jargon.
+- Do not ask the client any questions.
+- Do not ask the client to confirm anything or send more details.
+- Give a complete numbered step-by-step guide to fix the problem.
+- Use only the ticket description and the knowledge article provided. Do not make up steps, links, phone numbers, emails, or product features.
+- If the problem may take time to fix or needs review, write "Processing" in your response.
+- If you are not sure of the answer, if the problem is not clear, or if the knowledge article does not cover it, tell the client to contact a human support agent. Include the Hanmak Technologies contact information.
+- Do not say the problem is fixed unless the provided information confirms it.
 - Do not mention AI, Gemini, prompts, or internal reasoning.
-- Do not include private internal notes.
+
+Hanmak Technologies contact information:
+- General Inquiries: +254795057377
+- Client Solution Advisory: +254733918911
+- Email: info@hanmak.co.ke or clientsolutionadvisors@hanmak.co.ke
+
+Response format:
+1. A short, friendly sentence that shows you understand the problem.
+2. A "Resolution Steps:" section with numbered steps.
+3. A "Processing:" section only if the problem needs waiting or review time.
+4. A final note with Hanmak contact information if the client may still need help or if you are not sure.
 """
 
 
@@ -95,7 +107,7 @@ Ticket description:
 Knowledge article:
 {knowledge_article}
 
-Draft the support response now.
+Write the final response now.
 """
 
     for attempt in range(MAX_RETRIES + 1):
@@ -121,6 +133,20 @@ Draft the support response now.
             await asyncio.sleep(delay)
 
     return response.text.strip()
+
+
+async def resolve_ticket(ticket, analysis, kb_docs) -> str:
+    if isinstance(ticket, dict):
+        description = ticket.get("description", "") or ticket.get("subject", "")
+    else:
+        description = getattr(ticket, "description", "") or getattr(ticket, "subject", "")
+
+    if isinstance(kb_docs, list):
+        article = "\n".join(kb_docs) if kb_docs else "No matching knowledge article available."
+    else:
+        article = kb_docs or "No matching knowledge article available."
+
+    return await generate_support_response(description, article)
 
 
 async def main() -> None:
