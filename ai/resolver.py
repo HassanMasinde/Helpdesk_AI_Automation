@@ -32,49 +32,6 @@ Response format:
 """
 
 
-MOCK_CASES = [
-    {
-        "name": "Login invalid credentials",
-        "ticket_description": """
-A hospital receptionist reports that they cannot log into MedicentreV3.
-They say their username is accepted, but after entering the password they get
-an 'Invalid credentials' message.
-""",
-        "knowledge_article": """
-For MedicentreV3 login issues, first confirm the user's registered email address
-and username. Ask whether they recently changed their password. If needed, guide
-the user to reset their password using the MedicentreV3 password reset workflow.
-If the user is locked out after repeated failed attempts, escalate the ticket to Tier-2.
-""",
-    },
-    {
-        "name": "Unsupported outpatient billing crash",
-        "ticket_description": """
-The outpatient billing module is crashing when I try to cancel a receipt.
-This started this morning after I posted a payment to the wrong patient account.
-I need to reverse it before end-of-day billing reconciliation.
-""",
-        "knowledge_article": """
-No matching MedicentreV3 knowledge article is available for outpatient billing
-receipt cancellation crashes.
-""",
-    },
-    {
-        "name": "Printer mapping issue",
-        "ticket_description": """
-The pharmacy team can print reports from MedicentreV3, but prescription labels
-are going to the ward printer instead of the pharmacy label printer.
-""",
-        "knowledge_article": """
-For printer routing issues, collect the user's department, workstation name,
-expected printer name, and the printer where the document actually printed.
-Do not change printer mappings from Tier-1. Escalate to Tier-2 after collecting
-those details.
-""",
-    },
-]
-
-
 MAX_RETRIES = 5
 INITIAL_RETRY_DELAY_SECONDS = 1
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
@@ -153,17 +110,3 @@ async def resolve_ticket(ticket, analysis, kb_docs, reference: str | None = None
         article = kb_docs or "No matching knowledge article available."
 
     return await generate_support_response(description, article, reference=reference)
-
-
-async def main() -> None:
-    for case in MOCK_CASES:
-        print(f"\n--- {case['name']} ---")
-        reply = await generate_support_response(
-            case["ticket_description"],
-            case["knowledge_article"],
-        )
-        print(reply)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

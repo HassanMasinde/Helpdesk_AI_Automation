@@ -114,7 +114,7 @@ The Gemini call retries on transient errors with exponential backoff:
 
 ## Knowledge Source
 
-Live knowledge comes from the shared Hanmak support knowledge base (a public Google Sheet) through the knowledge module. `ai/knowledge.py` also carries local fallback articles used for quick testing.
+Live knowledge comes from the shared Hanmak support knowledge base (a public Google Sheet) through the knowledge module. `ai/knowledge.py` also carries a small set of local fallback articles.
 
 ## Learning
 
@@ -144,12 +144,6 @@ Learned entries live in a local JSON store (`data/learned_knowledge.json`), not 
 
 ## How It Runs
 
-Mock test (runs built-in sample cases through Gemini):
-
-```powershell
-.\.venv\Scripts\python.exe -m ai.resolver
-```
-
 Integration contract — the browser automation hands the AI a ticket and receives the resolution back:
 
 ```python
@@ -176,20 +170,35 @@ ai/
 
 ## Getting Started
 
-1. Install dependencies:
+Requires Python 3.10+ and Google Chrome. Commands below are for Windows PowerShell.
+
+1. Create and activate a virtual environment:
 
    ```powershell
-   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
    ```
 
-2. Create a `.env` file in the project root with your Gemini API key:
+2. Install dependencies:
+
+   ```powershell
+   python -m pip install -r requirements.txt
+   ```
+
+3. Add your Gemini API key — create a `.env` file in the project root:
 
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
-3. Run the AI resolver:
+4. Try it — generate a resolution for one ticket:
 
-   ```powershell
-   .\.venv\Scripts\python.exe -m ai.resolver
+   ```python
+   import asyncio
+   from ai import solve_ticket
+
+   ticket = {"id": "1", "subject": "Login issue", "description": "Cannot log in."}
+   print(asyncio.run(solve_ticket(ticket)))
    ```
+
+The browser automation uses the same `solve_ticket` (or `generate_support_response`) to draft resolutions for live tickets.
