@@ -26,6 +26,8 @@ The pipeline is three steps, each in its own module:
 2. `ai/knowledge.py` — selects the matching support instructions.
 3. `ai/resolver.py` — asks Gemini to write the final resolution.
 
+A fourth module, `ai/learning.py`, remembers resolved tickets so the agent learns as it works (see [Learning](#learning)).
+
 ```python
 analysis = await analyze_ticket(ticket)        # step 1
 kb_docs   = await find_relevant_kb(analysis)   # step 2
@@ -64,8 +66,15 @@ It also keeps a small set of local fallback articles (account access, network, p
 
 ### `ai/resolver.py`
 
-- `generate_support_response(ticket_description, knowledge_article)` — async. Calls Gemini and returns the drafted response.
-- `resolve_ticket(ticket, analysis, kb_docs)` — async. Combines the ticket description and knowledge, then delegates to `generate_support_response`.
+- `generate_support_response(ticket_description, knowledge_article, reference=None)` — async. Calls Gemini and returns the drafted response. `reference` is an optional unverified learned hint passed in as background context.
+- `resolve_ticket(ticket, analysis, kb_docs, reference=None)` — async. Combines the ticket description and knowledge, then delegates to `generate_support_response`.
+
+### `ai/learning.py`
+
+- `find_learned_match(problem, verified=None)` — returns the best learned entry for a problem using pure keyword-overlap scoring, or `None` when below the threshold.
+- `add_learned(problem, resolution, ticket_id, kind="solution", verified=False)` — records a learned entry after a ticket is resolved.
+- `mark_verified(ticket_id)` — promotes an entry to verified so it can be auto-applied in future runs.
+- `load_learned()` / `save_learned()` — read/write the local JSON store.
 
 ### `ai/__init__.py`
 
@@ -79,7 +88,6 @@ The Gemini call is constrained by a strict system prompt. The AI must:
 - Write **one final response** — it must **never ask the client questions** (the client cannot reply to the ticket).
 - Give a **numbered step-by-step** resolution guide.
 - Use **only** the ticket description and the knowledge article provided — never invent steps, links, phone numbers, emails, or product features.
-- Write `Processing` when the issue needs waiting or review time.
 - If it is unsure, the problem is unclear, or the knowledge does not cover it, **escalate to a human agent** and include Hanmak contact details.
 - Never claim an issue is fixed unless the provided information confirms it.
 - Never mention AI, Gemini, prompts, or internal reasoning.
@@ -107,6 +115,32 @@ The Gemini call retries on transient errors with exponential backoff:
 ## Knowledge Source
 
 Live knowledge comes from the shared Hanmak support knowledge base (a public Google Sheet) through the knowledge module. `ai/knowledge.py` also carries local fallback articles used for quick testing.
+
+## Learning
+
+The agent learns as it resolves tickets. Every resolution is recorded in `ai/learning.py` against the problem's keywords, so a similar future ticket can be handled without another Gemini call.
+
+### Resolution Precedence
+
+For each ticket, the agent applies the first rule that matches, in order:
+
+1. **Curated knowledge base** — a Google Sheet match is passed to Gemini for a fresh response.
+2. **Verified learned entry** — a previously human-approved answer, reused directly.
+3. **Unverified learned entry** — an escalation rule is reused directly; a solution entry is passed to Gemini as a background hint (never auto-posted).
+4. **Gemini** — a fresh generated response.
+5. **Escalation fallback** — a standard Hanmak escalation message with contact details.
+
+Human-vetted knowledge always wins, unverified AI output is only used as context, and everything degrades gracefully to a human escalation.
+
+### Learning Store
+
+Learned entries live in a local JSON store (`data/learned_knowledge.json`), not in git. Each entry records:
+
+- `keywords` — the problem keywords used for matching.
+- `resolution` — the answer that was saved.
+- `kind` — `"solution"` or `"escalation"`.
+- `verified` — `true` once a human approves it for auto-apply.
+- `source_ticket` — the ticket the answer came from.
 
 ## How It Runs
 
@@ -137,6 +171,7 @@ ai/
   analyzer.py    ticket classification
   knowledge.py   knowledge article matching
   resolver.py    Gemini response drafting
+  learning.py    learned-resolution store
 ```
 
 ## Getting Started

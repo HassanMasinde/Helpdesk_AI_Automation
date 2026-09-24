@@ -16,12 +16,11 @@ Rules:
 - Do not ask the client to confirm anything or send more details.
 - Give a complete numbered step-by-step guide to fix the problem.
 - Use only the ticket description and the knowledge article provided. Do not make up steps, links, phone numbers, emails, or product features.
-- If the problem may take time to fix or needs review, write "Processing" in your response.
 - If you are not sure of the answer, if the problem is not clear, or if the knowledge article does not cover it, tell the client to contact a human support agent. Include the Hanmak Technologies contact information.
 - Do not say the problem is fixed unless the provided information confirms it.
 - Do not mention AI, Gemini, prompts, or internal reasoning.
 
-Hanmak Technologies contact information:
+Hanmak Technologies Limited contacts:
 - General Inquiries: +254795057377
 - Client Solution Advisory: +254733918911
 - Email: info@hanmak.co.ke or clientsolutionadvisors@hanmak.co.ke
@@ -29,8 +28,7 @@ Hanmak Technologies contact information:
 Response format:
 1. A short, friendly sentence that shows you understand the problem.
 2. A "Resolution Steps:" section with numbered steps.
-3. A "Processing:" section only if the problem needs waiting or review time.
-4. A final note with Hanmak contact information if the client may still need help or if you are not sure.
+3. A final note with Hanmak contact information if the client may still need help or if you are not sure.
 """
 
 
@@ -94,11 +92,19 @@ def _is_retryable_gemini_error(error: Exception) -> bool:
 async def generate_support_response(
     ticket_description: str,
     knowledge_article: str,
+    reference: str | None = None,
 ) -> str:
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY is missing. Add it to your .env file.")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
+
+    reference_block = ""
+    if reference:
+        reference_block = (
+            "\n\nUnverified learned hint (use only if it matches this ticket):\n"
+            f"{reference}\n"
+        )
 
     prompt = f"""
 Ticket description:
@@ -106,7 +112,7 @@ Ticket description:
 
 Knowledge article:
 {knowledge_article}
-
+{reference_block}
 Write the final response now.
 """
 
@@ -135,7 +141,7 @@ Write the final response now.
     return response.text.strip()
 
 
-async def resolve_ticket(ticket, analysis, kb_docs) -> str:
+async def resolve_ticket(ticket, analysis, kb_docs, reference: str | None = None) -> str:
     if isinstance(ticket, dict):
         description = ticket.get("description", "") or ticket.get("subject", "")
     else:
@@ -146,7 +152,7 @@ async def resolve_ticket(ticket, analysis, kb_docs) -> str:
     else:
         article = kb_docs or "No matching knowledge article available."
 
-    return await generate_support_response(description, article)
+    return await generate_support_response(description, article, reference=reference)
 
 
 async def main() -> None:
