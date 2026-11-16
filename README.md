@@ -401,6 +401,43 @@ Possible future improvements include:
 - Reporting dashboard for common support issues.
 - Improved escalation workflow.
 
+## Local Dashboard
+
+The `Dashboard` branch includes a local web dashboard for operating the agent and reviewing ticket activity. The dashboard is served by Python's built-in HTTP server and is intended to run on the same computer as the agent.
+
+### Start the dashboard on Windows
+
+1. Make sure Python and Google Chrome are installed.
+2. From the project root, create a virtual environment and install the project dependencies:
+
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -r requirements.txt
+   ```
+
+3. Configure the credentials and API key required by the agent in a root-level `.env` file. Keep `.env` private and do not commit it. The agent reads `AGENT_USERNAME`, `AGENT_PASSWORD`, and `GEMINI_API_KEY`.
+4. Run `Start Dashboard.bat`, or start it from PowerShell:
+
+   ```powershell
+   .\.venv\Scripts\python.exe -u dashboard_server.py
+   ```
+
+5. Open [http://127.0.0.1:8790](http://127.0.0.1:8790) if the browser does not open automatically.
+
+The dashboard server uses `127.0.0.1` by default and reads the optional `PORT` environment variable to select a different port.
+
+### Dashboard controls
+
+- **Check Now** runs one ticket-processing cycle.
+- **Start Monitoring** repeatedly checks for eligible tickets.
+- **Stop** requests that monitoring stop after the current ticket finishes.
+- **Run Loyon in background** controls whether the agent's Chrome window is visible on its next launch.
+- **Find Tickets** loads tickets for the selected date range and filters by search text, status, and ticket type.
+- Selecting a ticket lets an operator review its resolution, regenerate it, or delete it. Stop the agent before performing ticket search or editing actions.
+
+The dashboard displays status, ticket counts, recent activity, and resolution details. Its files are `dashboard_server.py`, `dashboard/index.html`, `dashboard/app.js`, and `dashboard/styles.css`; `Start Dashboard.bat` is the Windows launcher. The dashboard calls `run_agent.py`, so that agent entry point and its required modules must also be present locally for the controls that perform live operations to work.
+
 ## Conclusion
 
 The Hanmak Support AI Agent was created to improve Tier-1 support for MedicentreV3.
