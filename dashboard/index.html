@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helpdesk AI Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div><h1>Helpdesk AI Dashboard</h1><p class="muted">Loyon ERP &middot; Hanmak Technologies</p></div>
+      </div>
+      <div class="status-wrap"><span class="muted small">Agent status</span><span id="statusBadge" class="badge idle">Idle</span></div>
+    </header>
+
+    <section class="controls card">
+      <button id="checkBtn" class="btn">Check Now</button>
+      <button id="startBtn" class="btn">Start Monitoring</button>
+      <button id="stopBtn" class="btn btn-danger" disabled>Stop</button>
+      <span id="controlMsg" class="muted small"></span>
+      <span class="controls-spacer"></span>
+      <label class="switch" title="Run Loyon in the background">
+        <input type="checkbox" id="backgroundToggle" />
+        <span class="slider"></span>
+      </label>
+      <span class="muted small">Run Loyon in background</span>
+      <span id="backgroundState" class="pill pill-status">Loyon: Visible</span>
+    </section>
+
+    <section class="stats">
+      <div class="stat card clickable" data-status="found" role="button" tabindex="0"><span class="stat-label">Found</span><span id="statFound" class="stat-value">0</span></div>
+      <div class="stat card clickable" data-status="saved" role="button" tabindex="0"><span class="stat-label">Saved</span><span id="statSaved" class="stat-value saved">0</span></div>
+      <div class="stat card clickable" data-status="skipped" role="button" tabindex="0"><span class="stat-label">Skipped</span><span id="statSkipped" class="stat-value skipped">0</span></div>
+      <div class="stat card clickable" data-status="failed" role="button" tabindex="0"><span class="stat-label">Failed</span><span id="statFailed" class="stat-value failed">0</span></div>
+    </section>
+
+    <section class="card search-panel">
+      <div class="section-head"><div><h2>Find Tickets</h2><p class="muted small">Search by ticket number or words in the problem description.</p></div><span id="searchMsg" class="muted small"></span></div>
+      <div class="search-grid">
+        <label class="search-wide">Search<input id="searchInput" type="search" placeholder="Ticket number, APDK, printer, login..." /></label>
+        <label>Date from<input id="dateFrom" type="date" /></label>
+        <label>Date to<input id="dateTo" type="date" /></label>
+        <label>Status<select id="statusFilter"><option value="">All statuses</option><option>Open</option><option>Resolved</option><option>Closed</option></select></label>
+        <label>Ticket type<select id="typeFilter"><option value="">All types</option><option value="how_to">How-To / Informational</option><option value="incident">Incident</option><option value="service_request">Service Request</option><option value="problem">Problem</option><option value="change_request">Change Request / RFC</option></select></label>
+      </div>
+      <div class="row-actions"><button id="searchBtn" class="btn">Search Tickets</button><button id="clearSearchBtn" class="btn btn-ghost">Clear Filters</button><span id="resultCount" class="muted small"></span></div>
+    </section>
+
+    <section class="card results-panel"><div class="section-head"><div><h2>Ticket Results</h2><p class="muted small">Click a ticket to view the problem and redo or delete its resolution.</p></div></div><div id="searchResults" class="results empty-state">Choose a date range and search to retrieve tickets.</div></section>
+
+    <section class="grid">
+      <div class="card"><h2>Current ticket</h2><p id="ticketId" class="big">—</p><p id="ticketType" class="muted small">—</p><p id="ticketSubject" class="muted">No ticket being processed.</p></div>
+      <div class="card"><h2>Latest resolution <span id="sourceTag" class="tag hidden"></span></h2><pre id="resolution" class="resolution">No resolution yet.</pre></div>
+    </section>
+    <section class="card"><h2>Activity log</h2><div id="log" class="log"></div></section>
+    <footer class="muted small">Local only &middot; http://127.0.0.1:8790 &middot; Last update: <span id="lastUpdated">—</span></footer>
+  </div>
+
+  <div id="modal" class="modal-overlay hidden"><div class="modal"><div class="modal-head"><h2 id="modalTitle">Ticket Summary</h2><button id="modalClose" class="btn btn-ghost">Close</button></div><div id="modalBody" class="modal-body"></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
