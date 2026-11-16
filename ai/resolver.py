@@ -15,20 +15,17 @@ Rules:
 - Do not ask the client any questions.
 - Do not ask the client to confirm anything or send more details.
 - Give a complete numbered step-by-step guide to fix the problem.
-- Use only the ticket description and the knowledge article provided. Do not make up steps, links, phone numbers, emails, or product features.
-- If you are not sure of the answer, if the problem is not clear, or if the knowledge article does not cover it, tell the client to contact a human support agent. Include the Hanmak Technologies contact information.
+- Use only the ticket description and the reference material provided. Do not make up steps, links, phone numbers, emails, or product features.
+- Only answer from the supplied reference material. Do not provide a fallback or escalation message.
+- If the reference material does not contain any steps that resolve this specific ticket, respond with only the single word SKIP and nothing else. Do not explain that steps are unavailable or missing.
+- Never tell the client to contact Hanmak, support, or anyone else. Never include escalation instructions, phone numbers, or email addresses.
+- Never mention the knowledge base, knowledge article, documentation, Google Sheet, or any internal support material.
 - Do not say the problem is fixed unless the provided information confirms it.
-- Do not mention AI, Gemini, prompts, or internal reasoning.
-
-Hanmak Technologies Limited contacts:
-- General Inquiries: +254795057377
-- Client Solution Advisory: +254733918911
-- Email: info@hanmak.co.ke or clientsolutionadvisors@hanmak.co.ke
+- Do not mention AI, Gemini, prompts, internal reasoning, or human escalation.
 
 Response format:
 1. A short, friendly sentence that shows you understand the problem.
 2. A "Resolution Steps:" section with numbered steps.
-3. A final note with Hanmak contact information if the client may still need help or if you are not sure.
 """
 
 
@@ -50,11 +47,17 @@ async def generate_support_response(
     ticket_description: str,
     knowledge_article: str,
     reference: str | None = None,
+    ticket_type: str | None = None,
+    variation: bool = False,
 ) -> str:
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY is missing. Add it to your .env file.")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
+
+    type_line = ""
+    if ticket_type:
+        type_line = f"\nTicket type: {ticket_type}\n"
 
     reference_block = ""
     if reference:
@@ -63,15 +66,22 @@ async def generate_support_response(
             f"{reference}\n"
         )
 
+    variation_line = ""
+    if variation:
+        variation_line = "\nPlease phrase this resolution differently from any previous draft.\n"
+
     prompt = f"""
 Ticket description:
 {ticket_description}
-
-Knowledge article:
+{type_line}
+Reference material:
 {knowledge_article}
 {reference_block}
+{variation_line}
 Write the final response now.
 """
+
+    temperature = 0.6 if variation else 0.2
 
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -80,7 +90,7 @@ Write the final response now.
                 contents=prompt,
                 config={
                     "system_instruction": SYSTEM_PROMPT,
-                    "temperature": 0.2,
+                    "temperature": temperature,
                 },
             )
             break
@@ -98,15 +108,19 @@ Write the final response now.
     return response.text.strip()
 
 
-async def resolve_ticket(ticket, analysis, kb_docs, reference: str | None = None) -> str:
+async def resolve_ticket(ticket, analysis, kb_docs, reference: str | None = None, ticket_type: str | None = None) -> str:
     if isinstance(ticket, dict):
         description = ticket.get("description", "") or ticket.get("subject", "")
     else:
         description = getattr(ticket, "description", "") or getattr(ticket, "subject", "")
 
     if isinstance(kb_docs, list):
-        article = "\n".join(kb_docs) if kb_docs else "No matching knowledge article available."
+        if not kb_docs:
+            raise LookupError("No matching knowledge article found; ticket must be skipped.")
+        article = "\n".join(kb_docs)
     else:
-        article = kb_docs or "No matching knowledge article available."
+        if not kb_docs:
+            raise LookupError("No matching knowledge article found; ticket must be skipped.")
+        article = kb_docs
 
-    return await generate_support_response(description, article, reference=reference)
+    return await generate_support_response(description, article, reference=reference, ticket_type=ticket_type)
